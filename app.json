@@ -1,0 +1,43 @@
+{
+  "expo": {
+    "name": "Djangue",
+    "slug": "djangue",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.djangue.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Djangue necesita la cámara para verificar tu identidad.",
+        "NSPhotoLibraryUsageDescription": "Djangue necesita acceso a tus fotos para verificación.",
+        "NSFaceIDUsageDescription": "Usa Face ID para acceder a Djangue de forma segura."
+      }
+    },
+    "android": {
+      "package": "com.djangue.app",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.VIBRATE"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      [
+        "expo-camera",
+        { "cameraPermission": "Djangue necesita la cámara para verificar tu identidad." }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "scheme": "djangue"
+  }
+}
