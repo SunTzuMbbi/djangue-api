@@ -33,7 +33,6 @@ export default function WelcomeScreen() {
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <StatusBar style="light" />
 
-      {/* Fondo esmeralda con anillos */}
       <View style={styles.heroBg}>
         <Animated.View style={[styles.ring, styles.ringOuter, { opacity: ring2 }]} />
         <Animated.View style={[styles.ring, styles.ringInner, { opacity: ring1 }]} />
@@ -42,7 +41,6 @@ export default function WelcomeScreen() {
         </View>
       </View>
 
-      {/* Contenido inferior */}
       <Animated.View style={[styles.content, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
         <Text style={styles.appName}>djangue</Text>
         <Text style={styles.tagline}>Tu tanda, coordinada.</Text>
@@ -66,7 +64,7 @@ export default function WelcomeScreen() {
 
           <TouchableOpacity
             style={styles.btnSecondary}
-            onPress={() => router.push('/(auth)/phone')}
+            onPress={() => router.push('/(auth)/login')}
             activeOpacity={0.85}
           >
             <Text style={styles.btnSecondaryText}>Ya tengo cuenta</Text>
@@ -79,62 +77,21 @@ export default function WelcomeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.cream },
-  heroBg: {
-    flex: 1,
-    backgroundColor: COLORS.emerald,
-    alignItems: 'center',
-    justifyContent: 'center',
-    maxHeight: '55%',
-  },
-  ring: {
-    position: 'absolute',
-    borderRadius: 999,
-    borderWidth: 1.5,
-    borderColor: COLORS.cream,
-  },
+  heroBg: { flex: 1, backgroundColor: COLORS.emerald, alignItems: 'center', justifyContent: 'center', maxHeight: '55%' },
+  ring: { position: 'absolute', borderRadius: 999, borderWidth: 1.5, borderColor: COLORS.cream },
   ringOuter: { width: 280, height: 280 },
   ringInner: { width: 180, height: 180, borderStyle: 'dashed' },
-  logoCircle: {
-    width: 80, height: 80, borderRadius: 40,
-    borderWidth: 3, borderColor: COLORS.cream,
-    borderStyle: 'dashed',
-    alignItems: 'center', justifyContent: 'center',
-  },
+  logoCircle: { width: 80, height: 80, borderRadius: 40, borderWidth: 3, borderColor: COLORS.cream, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' },
   logoDot: { width: 28, height: 28, borderRadius: 14, backgroundColor: COLORS.cream },
-  content: {
-    flex: 1,
-    paddingHorizontal: SPACING.xl,
-    paddingTop: SPACING.xxl,
-    paddingBottom: SPACING.lg,
-  },
-  appName: {
-    fontSize: 36, fontWeight: '700', color: COLORS.charcoal,
-    letterSpacing: 2, marginBottom: SPACING.xs,
-  },
+  content: { flex: 1, paddingHorizontal: SPACING.xl, paddingTop: SPACING.xxl, paddingBottom: SPACING.lg },
+  appName: { fontSize: 36, fontWeight: '700', color: COLORS.charcoal, letterSpacing: 2, marginBottom: SPACING.xs },
   tagline: { ...TYPOGRAPHY.h3, color: COLORS.emerald, marginBottom: SPACING.md },
-  description: {
-    ...TYPOGRAPHY.body, color: COLORS.charcoal + 'AA',
-    lineHeight: 24, marginBottom: SPACING.lg,
-  },
-  disclaimer: {
-    backgroundColor: COLORS.emerald + '12',
-    borderRadius: RADIUS.sm, borderLeftWidth: 3,
-    borderLeftColor: COLORS.emerald,
-    padding: SPACING.sm, marginBottom: SPACING.xl,
-  },
-  disclaimerText: {
-    ...TYPOGRAPHY.caption, color: COLORS.emerald,
-    fontStyle: 'italic', fontWeight: '600',
-  },
+  description: { ...TYPOGRAPHY.body, color: COLORS.charcoal + 'AA', lineHeight: 24, marginBottom: SPACING.lg },
+  disclaimer: { backgroundColor: COLORS.emerald + '12', borderRadius: RADIUS.sm, borderLeftWidth: 3, borderLeftColor: COLORS.emerald, padding: SPACING.sm, marginBottom: SPACING.xl },
+  disclaimerText: { ...TYPOGRAPHY.caption, color: COLORS.emerald, fontStyle: 'italic', fontWeight: '600' },
   actions: { gap: SPACING.md },
-  btnPrimary: {
-    backgroundColor: COLORS.emerald, borderRadius: RADIUS.lg,
-    paddingVertical: SPACING.lg, alignItems: 'center', ...SHADOWS.md,
-  },
+  btnPrimary: { backgroundColor: COLORS.emerald, borderRadius: RADIUS.lg, paddingVertical: SPACING.lg, alignItems: 'center', ...SHADOWS.md },
   btnPrimaryText: { ...TYPOGRAPHY.button, color: COLORS.cream, fontSize: 16 },
-  btnSecondary: {
-    borderRadius: RADIUS.lg, paddingVertical: SPACING.lg,
-    alignItems: 'center', borderWidth: 1.5, borderColor: COLORS.emerald,
-  },
+  btnSecondary: { borderRadius: RADIUS.lg, paddingVertical: SPACING.lg, alignItems: 'center', borderWidth: 1.5, borderColor: COLORS.emerald },
   btnSecondaryText: { ...TYPOGRAPHY.button, color: COLORS.emerald, fontSize: 16 },
 });
