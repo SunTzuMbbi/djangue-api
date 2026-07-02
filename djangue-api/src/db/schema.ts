@@ -3,7 +3,6 @@ import {
   decimal, pgEnum, uuid,
 } from 'drizzle-orm/pg-core';
 
-// ─── Enums ───────────────────────────────────────────────────────────────────
 export const verificationStatusEnum = pgEnum('verification_status', ['idle', 'pending', 'approved', 'rejected']);
 export const groupStatusEnum = pgEnum('group_status', ['open', 'active', 'completed', 'expired', 'cancelled']);
 export const paymentMethodEnum = pgEnum('payment_method', ['bizum', 'sepa']);
@@ -18,13 +17,13 @@ export const notificationTypeEnum = pgEnum('notification_type', [
   'verification_approved', 'verification_rejected', 'phantom_warning', 'group_expiring',
 ]);
 
-// ─── Users ───────────────────────────────────────────────────────────────────
 export const users = pgTable('users', {
   id:                 uuid('id').primaryKey().defaultRandom(),
-  phone:              text('phone').notNull().unique(),
+  phone:              text('phone').notNull().default(''),
   nombre:             text('nombre').notNull().default(''),
   apellidos:          text('apellidos').notNull().default(''),
   email:              text('email').notNull().default(''),
+  passwordHash:       text('password_hash').notNull().default(''),
   displayName:        text('display_name').notNull().default(''),
   avatarUrl:          text('avatar_url'),
   countryCode:        text('country_code').notNull().default('ES'),
@@ -36,7 +35,6 @@ export const users = pgTable('users', {
   createdAt:          timestamp('created_at').notNull().defaultNow(),
 });
 
-// ─── OTP ─────────────────────────────────────────────────────────────────────
 export const otpCodes = pgTable('otp_codes', {
   id:        uuid('id').primaryKey().defaultRandom(),
   phone:     text('phone').notNull(),
@@ -46,28 +44,26 @@ export const otpCodes = pgTable('otp_codes', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
-// ─── Groups ──────────────────────────────────────────────────────────────────
 export const groups = pgTable('groups', {
-  id:                 uuid('id').primaryKey().defaultRandom(),
-  name:               text('name').notNull(),
-  leaderId:           uuid('leader_id').notNull().references(() => users.id),
-  amount:             decimal('amount', { precision: 10, scale: 2 }).notNull(),
-  maxParticipants:    integer('max_participants').notNull(),
-  currentParticipants:integer('current_participants').notNull().default(0),
-  status:             groupStatusEnum('status').notNull().default('open'),
-  paymentMethod:      paymentMethodEnum('payment_method').notNull().default('bizum'),
-  countryCode:        text('country_code').notNull().default('ES'),
-  depositAmount:      decimal('deposit_amount', { precision: 10, scale: 2 }).notNull().default('0'),
-  currentCycle:       integer('current_cycle').notNull().default(0),
-  totalCycles:        integer('total_cycles').notNull().default(0),
-  nextPaymentDate:    timestamp('next_payment_date'),
-  lotteryHash:        text('lottery_hash'),
-  inviteCode:         text('invite_code').notNull().unique(),
-  createdAt:          timestamp('created_at').notNull().defaultNow(),
-  completedAt:        timestamp('completed_at'),
+  id:                  uuid('id').primaryKey().defaultRandom(),
+  name:                text('name').notNull(),
+  leaderId:            uuid('leader_id').notNull().references(() => users.id),
+  amount:              decimal('amount', { precision: 10, scale: 2 }).notNull(),
+  maxParticipants:     integer('max_participants').notNull(),
+  currentParticipants: integer('current_participants').notNull().default(0),
+  status:              groupStatusEnum('status').notNull().default('open'),
+  paymentMethod:       paymentMethodEnum('payment_method').notNull().default('bizum'),
+  countryCode:         text('country_code').notNull().default('ES'),
+  depositAmount:       decimal('deposit_amount', { precision: 10, scale: 2 }).notNull().default('0'),
+  currentCycle:        integer('current_cycle').notNull().default(0),
+  totalCycles:         integer('total_cycles').notNull().default(0),
+  nextPaymentDate:     timestamp('next_payment_date'),
+  lotteryHash:         text('lottery_hash'),
+  inviteCode:          text('invite_code').notNull().unique(),
+  createdAt:           timestamp('created_at').notNull().defaultNow(),
+  completedAt:         timestamp('completed_at'),
 });
 
-// ─── Participants ─────────────────────────────────────────────────────────────
 export const participants = pgTable('participants', {
   id:            uuid('id').primaryKey().defaultRandom(),
   userId:        uuid('user_id').notNull().references(() => users.id),
@@ -79,7 +75,6 @@ export const participants = pgTable('participants', {
   joinedAt:      timestamp('joined_at').notNull().defaultNow(),
 });
 
-// ─── Cycles ───────────────────────────────────────────────────────────────────
 export const cycles = pgTable('cycles', {
   id:          uuid('id').primaryKey().defaultRandom(),
   groupId:     uuid('group_id').notNull().references(() => groups.id),
@@ -91,7 +86,6 @@ export const cycles = pgTable('cycles', {
   createdAt:   timestamp('created_at').notNull().defaultNow(),
 });
 
-// ─── Payments ─────────────────────────────────────────────────────────────────
 export const payments = pgTable('payments', {
   id:          uuid('id').primaryKey().defaultRandom(),
   groupId:     uuid('group_id').notNull().references(() => groups.id),
@@ -106,7 +100,6 @@ export const payments = pgTable('payments', {
   createdAt:   timestamp('created_at').notNull().defaultNow(),
 });
 
-// ─── Deposits ─────────────────────────────────────────────────────────────────
 export const deposits = pgTable('deposits', {
   id:            uuid('id').primaryKey().defaultRandom(),
   groupId:       uuid('group_id').notNull().references(() => groups.id),
@@ -118,7 +111,6 @@ export const deposits = pgTable('deposits', {
   createdAt:     timestamp('created_at').notNull().defaultNow(),
 });
 
-// ─── Disputes ─────────────────────────────────────────────────────────────────
 export const disputes = pgTable('disputes', {
   id:          uuid('id').primaryKey().defaultRandom(),
   groupId:     uuid('group_id').notNull().references(() => groups.id),
@@ -132,7 +124,6 @@ export const disputes = pgTable('disputes', {
   resolvedAt:  timestamp('resolved_at'),
 });
 
-// ─── Notifications ────────────────────────────────────────────────────────────
 export const notifications = pgTable('notifications', {
   id:        uuid('id').primaryKey().defaultRandom(),
   userId:    uuid('user_id').notNull().references(() => users.id),
