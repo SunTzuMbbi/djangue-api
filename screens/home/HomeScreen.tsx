@@ -1,40 +1,65 @@
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import {
+  View, Text, StyleSheet, ScrollView, TouchableOpacity,
+  RefreshControl, Modal, Image, AppState,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, TYPOGRAPHY, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { useAuthStore } from '../../store/authStore';
 import { useGroupStore } from '../../store/groupStore';
-import { Card, SectionHeader, EmptyState, ProgressBar, Badge, LegalBar } from '../../components/common';
+import { SectionHeader, EmptyState, ProgressBar, LegalBar, Avatar } from '../../components/common';
 import type { Group } from '../../types';
 
-const GroupCard = ({ group, onPress }: { group: Group; onPress: () => void }) => {
-  const progress = (group.currentCycle / group.totalCycles) * 100;
-  const spotsLeft = group.maxParticipants - group.currentParticipants;
+const STATUS_LABELS: Record<string, string> = { active: 'Activo', open: 'Abierto', completed: 'Completado' };
+const STATUS_COLORS: Record<string, string> = { active: COLORS.emerald, open: COLORS.blue, completed: COLORS.purple };
+
+const DjangueCard = ({ group, onPress }: { group: Group; onPress: () => void }) => {
+  const progress = group.totalCycles ? (group.currentCycle / group.totalCycles) * 100 : 0;
+  const color = STATUS_COLORS[group.status] || COLORS.emerald;
   return (
-    <Card style={styles.groupCard} onPress={onPress}>
-      <View style={styles.groupCardHeader}>
-        <Text style={styles.groupName} numberOfLines={1}>{group.name}</Text>
-        <Badge label={group.status === 'active' ? 'Activa' : 'Abierta'} color={group.status === 'active' ? COLORS.emerald : COLORS.coral} />
+    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.88}>
+      <View style={[styles.cardBar, { backgroundColor: color }]} />
+      <View style={styles.cardContent}>
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardName} numberOfLines={1}>{group.name}</Text>
+          <View style={[styles.cardStatus, { backgroundColor: color + '18' }]}>
+            <Text style={[styles.cardStatusText, { color }]}>{STATUS_LABELS[group.status] || group.status}</Text>
+          </View>
+        </View>
+        <Text style={styles.cardSub}>{group.amount}€/mes · {group.maxParticipants} participantes</Text>
+        <ProgressBar progress={progress} color={color} />
+        <View style={styles.cardFooter}>
+          <Text style={styles.cardMeta}>Ciclo {group.currentCycle}/{group.totalCycles}</Text>
+          <Text style={[styles.cardMeta, { color }]}>
+            {group.maxParticipants - group.currentParticipants} plazas libres
+          </Text>
+        </View>
       </View>
-      <Text style={styles.groupAmount}>{group.amount}€/mes · {group.maxParticipants} participantes</Text>
-      <ProgressBar progress={progress} />
-      <View style={styles.groupCardFooter}>
-        <Text style={styles.groupMeta}>Ciclo {group.currentCycle} de {group.totalCycles}</Text>
-        {spotsLeft > 0 && <Text style={styles.groupSpots}>{spotsLeft} plazas libres</Text>}
-      </View>
-    </Card>
+    </TouchableOpacity>
   );
 };
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { user } = useAuthStore();
+  const { user, logout, refreshVerification } = useAuthStore();
   const { myGroups, fetchMyGroups, isLoading } = useGroupStore();
+  const [profileOpen, setProfileOpen] = useState(false);
 
   useEffect(() => { fetchMyGroups(); }, []);
 
-  const firstName = user?.displayName?.split(' ')[0] || 'hola';
+  // Recarga verificación cuando la app vuelve al primer plano
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') refreshVerification();
+    });
+    return () => sub.remove();
+  }, []);
+
+  const firstName = user?.nombre || user?.displayName?.split(' ')[0] || '';
+  const totalAmount = myGroups.reduce((s, g) => s + (parseFloat(String(g.amount)) || 0), 0);
+  const isVerified = user?.emailVerified;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -44,91 +69,168 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.greeting}>Hola, {firstName}</Text>
-            <Text style={styles.subgreeting}>
-              {user?.verificationStatus === 'approved' ? 'Verificado ✓' : 'Verificación pendiente'}
-            </Text>
-          </View>
-          <TouchableOpacity style={styles.notifBtn} onPress={() => router.push('/(main)/notifications')}>
-            <View style={styles.notifDot} />
-            <Text style={styles.notifIcon}>○</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Banner verificación */}
-        {user?.verificationStatus !== 'approved' && (
-          <TouchableOpacity style={styles.verifyBanner} onPress={() => router.push('/(auth)/pre-camera')} activeOpacity={0.88}>
+        <LinearGradient colors={[COLORS.navy, '#253070']} style={styles.header} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+          <View style={styles.headerRow}>
             <View>
-              <Text style={styles.verifyBannerTitle}>Verifica tu identidad</Text>
-              <Text style={styles.verifyBannerBody}>Necesitas verificarte para unirte a tandas.</Text>
+              <Text style={styles.headerSub}>Bienvenido</Text>
+              <Text style={styles.headerName}>{firstName}</Text>
             </View>
-            <Text style={styles.verifyBannerArrow}>›</Text>
+            <TouchableOpacity onPress={() => setProfileOpen(true)} style={styles.avatarWrap}>
+              <Avatar name={user?.displayName || 'U'} size={42} color={COLORS.gold} />
+              {!isVerified && <View style={styles.avatarBadge} />}
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.statsRow}>
+            <View style={styles.statItem}>
+              <Text style={styles.statVal}>{myGroups.length}</Text>
+              <Text style={styles.statLab}>Djangues</Text>
+            </View>
+            <View style={styles.statSep} />
+            <View style={styles.statItem}>
+              <Text style={styles.statVal}>{totalAmount}€</Text>
+              <Text style={styles.statLab}>Total/mes</Text>
+            </View>
+            <View style={styles.statSep} />
+            <View style={styles.statItem}>
+              <Text style={[styles.statVal, { color: isVerified ? COLORS.gold : COLORS.coral }]}>
+                {isVerified ? 'Activo' : 'Pendiente'}
+              </Text>
+              <Text style={styles.statLab}>Estado</Text>
+            </View>
+          </View>
+        </LinearGradient>
+
+        {/* Alerta verificacion */}
+        {!isVerified && (
+          <TouchableOpacity style={styles.alertBanner} onPress={() => refreshVerification()} activeOpacity={0.88}>
+            <View style={styles.alertIcon}><Text style={styles.alertIconText}>!</Text></View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.alertTitle}>Correo pendiente de verificacion</Text>
+              <Text style={styles.alertBody}>Pulsa aqui para comprobar si ya verificaste tu correo.</Text>
+            </View>
+            <Text style={styles.alertArrow}>›</Text>
           </TouchableOpacity>
         )}
 
-        {/* Mis tandas */}
+        {/* Acciones */}
+        <View style={styles.actionsGrid}>
+          {[
+            { label: 'Crear Djangue', color: COLORS.emerald, route: '/(group)/create' },
+            { label: 'Unirme',        color: COLORS.coral,   route: '/(group)/join' },
+            { label: 'Explorar',      color: COLORS.blue,    route: '/(main)/explore' },
+            { label: 'Mi perfil',     color: COLORS.purple,  route: '/(main)/profile' },
+          ].map(a => (
+            <TouchableOpacity key={a.label} style={[styles.actionBtn, { borderLeftColor: a.color }]}
+              onPress={() => router.push(a.route as any)} activeOpacity={0.85}>
+              <View style={[styles.actionDot, { backgroundColor: a.color }]} />
+              <Text style={styles.actionLabel}>{a.label}</Text>
+              <Text style={styles.actionArrow}>›</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Mis Djangues */}
         <View style={styles.section}>
-          <SectionHeader title="Mis tandas" action="Ver todas" onAction={() => router.push('/(main)/explore')} />
+          <SectionHeader title="Mis Djangues" action="Ver todos" onAction={() => router.push('/(main)/explore')} />
           {myGroups.length === 0 ? (
             <EmptyState
-              title="Sin tandas activas"
-              body="Únete a una tanda o crea la tuya para empezar."
-              cta="Explorar tandas"
+              title="Sin Djangues activos"
+              body="Crea tu primer Djangue o unete a uno existente para empezar a ahorrar en grupo."
+              cta="Explorar Djangues"
               onCta={() => router.push('/(main)/explore')}
             />
           ) : (
             myGroups.map(g => (
-              <GroupCard key={g.id} group={g} onPress={() => router.push({ pathname: '/(group)/[id]', params: { id: g.id } })} />
+              <DjangueCard key={g.id} group={g}
+                onPress={() => router.push({ pathname: '/(group)/[id]', params: { id: g.id } })} />
             ))
           )}
         </View>
-
-        {/* Acciones rápidas */}
-        <View style={styles.section}>
-          <SectionHeader title="Acciones rápidas" />
-          <View style={styles.quickActions}>
-            {[
-              { label: 'Nueva tanda', color: COLORS.emerald, route: '/(group)/create' },
-              { label: 'Unirme', color: COLORS.coral, route: '/(group)/join' },
-              { label: 'Mi perfil', color: COLORS.charcoal, route: '/(main)/profile' },
-            ].map(a => (
-              <TouchableOpacity key={a.label} style={[styles.quickAction, { backgroundColor: a.color }]}
-                onPress={() => router.push(a.route as any)} activeOpacity={0.85}>
-                <Text style={styles.quickActionText}>{a.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
       </ScrollView>
       <LegalBar />
+
+      {/* Dropdown perfil */}
+      <Modal visible={profileOpen} transparent animationType="fade" onRequestClose={() => setProfileOpen(false)}>
+        <TouchableOpacity style={styles.overlay} onPress={() => setProfileOpen(false)} activeOpacity={1}>
+          <View style={styles.dropdown}>
+            <View style={styles.dropdownHead}>
+              <Avatar name={user?.displayName || 'U'} size={48} color={COLORS.emerald} />
+              <View style={{ marginLeft: SPACING.md, flex: 1 }}>
+                <Text style={styles.dropName}>{user?.displayName}</Text>
+                <Text style={styles.dropEmail}>{user?.email}</Text>
+                <Text style={[styles.dropStatus, { color: isVerified ? COLORS.emerald : COLORS.coral }]}>
+                  {isVerified ? 'Cuenta verificada' : 'Verificacion pendiente'}
+                </Text>
+              </View>
+            </View>
+            {[
+              { label: 'Mi perfil',        route: '/(main)/profile' },
+              { label: 'Mis Djangues',     route: '/(main)/explore' },
+              { label: 'Avisos',           route: '/(main)/notifications' },
+              { label: 'Configuracion',    route: '/(main)/settings' },
+              { label: 'Resumen mensual',  route: '/(main)/monthly-summary' },
+            ].map(item => (
+              <TouchableOpacity key={item.label} style={styles.dropItem}
+                onPress={() => { setProfileOpen(false); router.push(item.route as any); }}>
+                <Text style={styles.dropItemText}>{item.label}</Text>
+                <Text style={styles.dropItemArrow}>›</Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity style={[styles.dropItem, { borderTopWidth: 1, borderTopColor: COLORS.navy + '12' }]}
+              onPress={() => { setProfileOpen(false); logout(); }}>
+              <Text style={[styles.dropItemText, { color: COLORS.coral }]}>Cerrar sesion</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.cream },
-  scroll: { paddingHorizontal: SPACING.xl, paddingBottom: SPACING.xxxl },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: SPACING.xl },
-  greeting: { ...TYPOGRAPHY.h2, color: COLORS.charcoal },
-  subgreeting: { ...TYPOGRAPHY.caption, color: COLORS.emerald, fontWeight: '600', marginTop: 2 },
-  notifBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.white, alignItems: 'center', justifyContent: 'center', ...SHADOWS.sm, position: 'relative' },
-  notifDot: { position: 'absolute', top: 8, right: 8, width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.coral, zIndex: 1 },
-  notifIcon: { fontSize: 20, color: COLORS.charcoal },
-  verifyBanner: { backgroundColor: COLORS.coral, borderRadius: RADIUS.md, padding: SPACING.lg, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: SPACING.xl, ...SHADOWS.md },
-  verifyBannerTitle: { ...TYPOGRAPHY.body, color: COLORS.cream, fontWeight: '700', marginBottom: 2 },
-  verifyBannerBody: { ...TYPOGRAPHY.caption, color: COLORS.cream + 'CC' },
-  verifyBannerArrow: { fontSize: 28, color: COLORS.cream, fontWeight: '300' },
-  section: { marginBottom: SPACING.xl },
-  groupCard: { marginBottom: SPACING.md },
-  groupCardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: SPACING.xs },
-  groupName: { ...TYPOGRAPHY.h3, color: COLORS.charcoal, flex: 1, marginRight: SPACING.sm },
-  groupAmount: { ...TYPOGRAPHY.caption, color: COLORS.charcoal + '80', marginBottom: SPACING.md },
-  groupCardFooter: { flexDirection: 'row', justifyContent: 'space-between', marginTop: SPACING.sm },
-  groupMeta: { ...TYPOGRAPHY.caption, color: COLORS.charcoal + '70' },
-  groupSpots: { ...TYPOGRAPHY.caption, color: COLORS.coral, fontWeight: '600' },
-  quickActions: { flexDirection: 'row', gap: SPACING.sm },
-  quickAction: { flex: 1, borderRadius: RADIUS.md, paddingVertical: SPACING.md, alignItems: 'center', ...SHADOWS.sm },
-  quickActionText: { ...TYPOGRAPHY.label, color: COLORS.cream, fontWeight: '700' },
+  container:      { flex: 1, backgroundColor: COLORS.bgLight },
+  scroll:         { paddingBottom: SPACING.xxxl },
+  header:         { paddingHorizontal: SPACING.xl, paddingTop: SPACING.lg, paddingBottom: SPACING.xxl, borderBottomLeftRadius: 24, borderBottomRightRadius: 24 },
+  headerRow:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.xl },
+  headerSub:      { fontSize: 12, color: 'rgba(255,255,255,0.6)', fontWeight: '500', letterSpacing: 0.5, textTransform: 'uppercase' },
+  headerName:     { fontSize: 24, fontWeight: '700', color: COLORS.white, letterSpacing: -0.3 },
+  avatarWrap:     { position: 'relative' },
+  avatarBadge:    { position: 'absolute', top: 0, right: 0, width: 10, height: 10, borderRadius: 5, backgroundColor: COLORS.coral, borderWidth: 2, borderColor: COLORS.navy },
+  statsRow:       { flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: RADIUS.md, padding: SPACING.lg },
+  statItem:       { flex: 1, alignItems: 'center' },
+  statVal:        { fontSize: 20, fontWeight: '700', color: COLORS.white },
+  statLab:        { fontSize: 11, color: 'rgba(255,255,255,0.6)', marginTop: 2, fontWeight: '500' },
+  statSep:        { width: 1, backgroundColor: 'rgba(255,255,255,0.2)' },
+  alertBanner:    { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.white, borderRadius: RADIUS.md, padding: SPACING.lg, margin: SPACING.xl, marginBottom: 0, borderLeftWidth: 4, borderLeftColor: COLORS.coral, ...SHADOWS.sm },
+  alertIcon:      { width: 32, height: 32, borderRadius: 16, backgroundColor: COLORS.coral, alignItems: 'center', justifyContent: 'center', marginRight: SPACING.md },
+  alertIconText:  { color: COLORS.white, fontWeight: '700', fontSize: 16 },
+  alertTitle:     { fontSize: 14, fontWeight: '700', color: COLORS.navy },
+  alertBody:      { fontSize: 12, color: COLORS.navy + '80', marginTop: 2 },
+  alertArrow:     { fontSize: 22, color: COLORS.navy + '40' },
+  actionsGrid:    { margin: SPACING.xl, gap: SPACING.sm },
+  actionBtn:      { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.white, borderRadius: RADIUS.md, padding: SPACING.lg, borderLeftWidth: 4, ...SHADOWS.sm },
+  actionDot:      { width: 8, height: 8, borderRadius: 4, marginRight: SPACING.md },
+  actionLabel:    { flex: 1, fontSize: 15, fontWeight: '600', color: COLORS.navy },
+  actionArrow:    { fontSize: 20, color: COLORS.navy + '30' },
+  section:        { paddingHorizontal: SPACING.xl },
+  card:           { flexDirection: 'row', backgroundColor: COLORS.white, borderRadius: RADIUS.md, marginBottom: SPACING.md, overflow: 'hidden', ...SHADOWS.sm },
+  cardBar:        { width: 4 },
+  cardContent:    { flex: 1, padding: SPACING.lg },
+  cardHeader:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
+  cardName:       { fontSize: 16, fontWeight: '700', color: COLORS.navy, flex: 1, marginRight: SPACING.sm },
+  cardStatus:     { borderRadius: RADIUS.pill, paddingVertical: 3, paddingHorizontal: SPACING.sm },
+  cardStatusText: { fontSize: 11, fontWeight: '700' },
+  cardSub:        { fontSize: 12, color: COLORS.navy + '70', marginBottom: SPACING.sm },
+  cardFooter:     { flexDirection: 'row', justifyContent: 'space-between', marginTop: SPACING.sm },
+  cardMeta:       { fontSize: 12, color: COLORS.navy + '60' },
+  overlay:        { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-start', alignItems: 'flex-end', paddingTop: 80, paddingRight: SPACING.xl },
+  dropdown:       { backgroundColor: COLORS.white, borderRadius: RADIUS.lg, width: 290, ...SHADOWS.lg, overflow: 'hidden' },
+  dropdownHead:   { flexDirection: 'row', alignItems: 'center', padding: SPACING.lg, backgroundColor: COLORS.navy },
+  dropName:       { fontSize: 15, fontWeight: '700', color: COLORS.white },
+  dropEmail:      { fontSize: 12, color: 'rgba(255,255,255,0.65)', marginTop: 2 },
+  dropStatus:     { fontSize: 11, fontWeight: '600', marginTop: 4 },
+  dropItem:       { flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACING.lg, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: COLORS.navy + '08' },
+  dropItemText:   { flex: 1, fontSize: 14, fontWeight: '500', color: COLORS.navy },
+  dropItemArrow:  { fontSize: 18, color: COLORS.navy + '35' },
 });

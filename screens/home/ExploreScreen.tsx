@@ -2,19 +2,22 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, TYPOGRAPHY, SPACING, RADIUS, SHADOWS } from '../../theme';
 import { useGroupStore } from '../../store/groupStore';
-import { Card, Badge, ProgressBar, EmptyState, LegalBar } from '../../components/common';
+import { EmptyState, LegalBar, ProgressBar } from '../../components/common';
 import type { Group } from '../../types';
 
 const COUNTRIES = [
-  { code: 'all', name: 'Todas' },
+  { code: 'all', name: 'Todos' },
   { code: 'ES', name: 'España' },
   { code: 'GQ', name: 'Guinea Ec.' },
   { code: 'CM', name: 'Camerún' },
   { code: 'NG', name: 'Nigeria' },
   { code: 'SN', name: 'Senegal' },
 ];
+
+const CARD_COLORS = [COLORS.emerald, COLORS.blue, COLORS.purple, COLORS.coral];
 
 export default function ExploreScreen() {
   const router = useRouter();
@@ -24,32 +27,35 @@ export default function ExploreScreen() {
 
   useEffect(() => { fetchGroups(country === 'all' ? undefined : country); }, [country]);
 
-  const filtered = groups.filter(g =>
-    g.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = groups.filter(g => g.name.toLowerCase().includes(search.toLowerCase()));
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Explorar tandas</Text>
-        <TouchableOpacity style={styles.joinCode} onPress={() => router.push('/(group)/join')}>
-          <Text style={styles.joinCodeText}>Código</Text>
-        </TouchableOpacity>
-      </View>
+      <LinearGradient colors={[COLORS.blue, COLORS.purple]} style={styles.header} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+        <View style={styles.headerTop}>
+          <View>
+            <Text style={styles.headerTitle}>Explorar Djangues</Text>
+            <Text style={styles.headerSub}>{groups.length} disponibles ahora</Text>
+          </View>
+          <TouchableOpacity style={styles.codeBtn} onPress={() => router.push('/(group)/join')}>
+            <Text style={styles.codeBtnText}>+ Codigo</Text>
+          </TouchableOpacity>
+        </View>
 
-      {/* Búsqueda */}
-      <View style={styles.searchWrap}>
-        <Text style={styles.searchIcon}>⌕</Text>
-        <TextInput style={styles.searchInput} value={search} onChangeText={setSearch}
-          placeholder="Buscar por nombre..." placeholderTextColor={COLORS.charcoal + '50'} />
-      </View>
+        <View style={styles.searchWrap}>
+          <Text style={styles.searchIcon}>⌕</Text>
+          <TextInput style={styles.searchInput} value={search} onChangeText={setSearch}
+            placeholder="Buscar Djangue..." placeholderTextColor="rgba(255,255,255,0.6)"
+            selectionColor={COLORS.gold} />
+        </View>
+      </LinearGradient>
 
-      {/* Filtro país */}
       <View style={styles.filterRow}>
         {COUNTRIES.map(c => (
-          <TouchableOpacity key={c.code} style={[styles.filterChip, country === c.code && styles.filterChipActive]}
+          <TouchableOpacity key={c.code}
+            style={[styles.chip, country === c.code && styles.chipActive]}
             onPress={() => setCountry(c.code)}>
-            <Text style={[styles.filterChipText, country === c.code && styles.filterChipTextActive]}>{c.name}</Text>
+            <Text style={[styles.chipText, country === c.code && styles.chipTextActive]}>{c.name}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -58,26 +64,50 @@ export default function ExploreScreen() {
         data={filtered}
         keyExtractor={g => g.id}
         contentContainerStyle={styles.list}
-        refreshControl={<RefreshControl refreshing={isLoading} onRefresh={() => fetchGroups(country === 'all' ? undefined : country)} tintColor={COLORS.emerald} />}
+        refreshControl={<RefreshControl refreshing={isLoading} onRefresh={() => fetchGroups(country === 'all' ? undefined : country)} tintColor={COLORS.blue} />}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
-          <EmptyState title="Sin tandas disponibles" body="No hay tandas abiertas con estos filtros. Prueba a cambiar el país o crea la tuya." cta="Crear tanda" onCta={() => router.push('/(group)/create')} />
+          <EmptyState
+            title="Sin Djangues disponibles"
+            body="No hay Djangues abiertos con estos filtros. Crea el tuyo y invita a tu comunidad."
+            cta="Crear Djangue"
+            onCta={() => router.push('/(group)/create')}
+          />
         }
-        renderItem={({ item: g }) => (
-          <Card style={styles.card} onPress={() => router.push({ pathname: '/(group)/[id]', params: { id: g.id } })}>
-            <View style={styles.cardTop}>
-              <Text style={styles.cardName} numberOfLines={1}>{g.name}</Text>
-              <Badge label={`${g.maxParticipants - g.currentParticipants} plazas`} color={COLORS.coral} />
-            </View>
-            <Text style={styles.cardLeader}>Líder: {g.leader?.displayName}</Text>
-            <Text style={styles.cardAmount}>{g.amount}€/mes · {g.paymentMethod === 'bizum' ? 'Bizum' : 'SEPA'}</Text>
-            <ProgressBar progress={(g.currentParticipants / g.maxParticipants) * 100} />
-            <View style={styles.cardFooter}>
-              <Text style={styles.cardMeta}>{g.currentParticipants}/{g.maxParticipants} participantes</Text>
-              <Text style={styles.cardDeposit}>Fianza: {g.depositAmount}€</Text>
-            </View>
-          </Card>
-        )}
+        renderItem={({ item: g, index }) => {
+          const color = CARD_COLORS[index % CARD_COLORS.length];
+          const fill = g.maxParticipants ? (g.currentParticipants / g.maxParticipants) * 100 : 0;
+          return (
+            <TouchableOpacity style={styles.card} onPress={() => router.push({ pathname: '/(group)/[id]', params: { id: g.id } })} activeOpacity={0.88}>
+              <View style={[styles.cardTop, { backgroundColor: color }]}>
+                <Text style={styles.cardName} numberOfLines={1}>{g.name}</Text>
+                <View style={styles.cardAmountBadge}>
+                  <Text style={styles.cardAmountText}>{g.amount}€</Text>
+                  <Text style={styles.cardAmountSub}>/mes</Text>
+                </View>
+              </View>
+              <View style={styles.cardBody}>
+                <View style={styles.cardRow}>
+                  <Text style={styles.cardMeta}>Participantes</Text>
+                  <Text style={[styles.cardMetaVal, { color }]}>{g.currentParticipants}/{g.maxParticipants}</Text>
+                </View>
+                <ProgressBar progress={fill} color={color} />
+                <View style={styles.cardRow}>
+                  <Text style={styles.cardMeta}>Metodo de pago</Text>
+                  <Text style={styles.cardMetaVal}>{g.paymentMethod === 'bizum' ? 'Bizum' : 'SEPA'}</Text>
+                </View>
+                <View style={styles.cardRow}>
+                  <Text style={styles.cardMeta}>Fianza</Text>
+                  <Text style={styles.cardMetaVal}>{g.depositAmount}€</Text>
+                </View>
+                <TouchableOpacity style={[styles.joinBtn, { backgroundColor: color }]}
+                  onPress={() => router.push({ pathname: '/(group)/[id]', params: { id: g.id } })}>
+                  <Text style={styles.joinBtnText}>Ver Djangue →</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
+          );
+        }}
       />
       <LegalBar />
     </SafeAreaView>
@@ -85,26 +115,32 @@ export default function ExploreScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.cream },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: SPACING.xl, paddingVertical: SPACING.lg },
-  title: { ...TYPOGRAPHY.h2, color: COLORS.charcoal },
-  joinCode: { paddingVertical: SPACING.xs, paddingHorizontal: SPACING.md, backgroundColor: COLORS.emerald + '15', borderRadius: RADIUS.pill, borderWidth: 1, borderColor: COLORS.emerald + '30' },
-  joinCodeText: { ...TYPOGRAPHY.caption, color: COLORS.emerald, fontWeight: '700' },
-  searchWrap: { flexDirection: 'row', alignItems: 'center', marginHorizontal: SPACING.xl, backgroundColor: COLORS.white, borderRadius: RADIUS.md, borderWidth: 1, borderColor: COLORS.charcoal + '18', paddingHorizontal: SPACING.md, marginBottom: SPACING.md, ...SHADOWS.sm },
-  searchIcon: { fontSize: 18, color: COLORS.charcoal + '60', marginRight: SPACING.sm },
-  searchInput: { flex: 1, ...TYPOGRAPHY.body, color: COLORS.charcoal, paddingVertical: SPACING.md },
-  filterRow: { flexDirection: 'row', paddingHorizontal: SPACING.xl, gap: SPACING.sm, marginBottom: SPACING.lg, flexWrap: 'wrap' },
-  filterChip: { paddingVertical: SPACING.xs, paddingHorizontal: SPACING.md, borderRadius: RADIUS.pill, borderWidth: 1.5, borderColor: COLORS.charcoal + '20', backgroundColor: COLORS.white },
-  filterChipActive: { borderColor: COLORS.emerald, backgroundColor: COLORS.emerald },
-  filterChipText: { ...TYPOGRAPHY.caption, color: COLORS.charcoal, fontWeight: '600' },
-  filterChipTextActive: { color: COLORS.cream },
-  list: { paddingHorizontal: SPACING.xl, paddingBottom: SPACING.xxxl },
-  card: { marginBottom: SPACING.md },
-  cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: SPACING.xs },
-  cardName: { ...TYPOGRAPHY.h3, color: COLORS.charcoal, flex: 1, marginRight: SPACING.sm },
-  cardLeader: { ...TYPOGRAPHY.caption, color: COLORS.charcoal + '70', marginBottom: SPACING.xs },
-  cardAmount: { ...TYPOGRAPHY.body, color: COLORS.charcoal, fontWeight: '600', marginBottom: SPACING.md },
-  cardFooter: { flexDirection: 'row', justifyContent: 'space-between', marginTop: SPACING.sm },
-  cardMeta: { ...TYPOGRAPHY.caption, color: COLORS.charcoal + '70' },
-  cardDeposit: { ...TYPOGRAPHY.caption, color: COLORS.emerald, fontWeight: '600' },
+  container:      { flex: 1, backgroundColor: COLORS.cream },
+  header:         { paddingHorizontal: SPACING.xl, paddingTop: SPACING.lg, paddingBottom: SPACING.xxl, borderBottomLeftRadius: 28, borderBottomRightRadius: 28 },
+  headerTop:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.lg },
+  headerTitle:    { fontSize: 24, fontWeight: '800', color: COLORS.white },
+  headerSub:      { fontSize: 13, color: 'rgba(255,255,255,0.75)', marginTop: 2 },
+  codeBtn:        { backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: RADIUS.pill, paddingVertical: SPACING.sm, paddingHorizontal: SPACING.lg, borderWidth: 1, borderColor: 'rgba(255,255,255,0.4)' },
+  codeBtnText:    { fontSize: 13, fontWeight: '700', color: COLORS.white },
+  searchWrap:     { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: RADIUS.md, paddingHorizontal: SPACING.md, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },
+  searchIcon:     { fontSize: 18, color: 'rgba(255,255,255,0.7)', marginRight: SPACING.sm },
+  searchInput:    { flex: 1, fontSize: 15, color: COLORS.white, paddingVertical: SPACING.md },
+  filterRow:      { flexDirection: 'row', paddingHorizontal: SPACING.xl, paddingVertical: SPACING.md, gap: SPACING.sm, flexWrap: 'wrap' },
+  chip:           { paddingVertical: 6, paddingHorizontal: SPACING.md, borderRadius: RADIUS.pill, borderWidth: 1.5, borderColor: COLORS.navy + '20', backgroundColor: COLORS.white },
+  chipActive:     { backgroundColor: COLORS.navy, borderColor: COLORS.navy },
+  chipText:       { fontSize: 12, color: COLORS.navy, fontWeight: '600' },
+  chipTextActive: { color: COLORS.white },
+  list:           { paddingHorizontal: SPACING.xl, paddingBottom: SPACING.xxxl, gap: SPACING.lg },
+  card:           { backgroundColor: COLORS.white, borderRadius: RADIUS.lg, overflow: 'hidden', ...SHADOWS.md },
+  cardTop:        { padding: SPACING.lg, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  cardName:       { fontSize: 18, fontWeight: '800', color: COLORS.white, flex: 1, marginRight: SPACING.sm },
+  cardAmountBadge:{ alignItems: 'flex-end' },
+  cardAmountText: { fontSize: 22, fontWeight: '800', color: COLORS.white },
+  cardAmountSub:  { fontSize: 11, color: 'rgba(255,255,255,0.8)' },
+  cardBody:       { padding: SPACING.lg, gap: SPACING.sm },
+  cardRow:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  cardMeta:       { fontSize: 12, color: COLORS.navy + '70' },
+  cardMetaVal:    { fontSize: 13, fontWeight: '700', color: COLORS.navy },
+  joinBtn:        { borderRadius: RADIUS.md, paddingVertical: SPACING.md, alignItems: 'center', marginTop: SPACING.sm, ...SHADOWS.sm },
+  joinBtnText:    { fontSize: 14, fontWeight: '700', color: COLORS.white },
 });
